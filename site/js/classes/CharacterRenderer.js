@@ -36,9 +36,9 @@ site.classes.CharacterRenderer = (function() {
 
 		this.hullIntegrity = 1;
 
-		this.targetLightState = 1;
+		this.targetLightState = 0;
 
-		this.targetHeadState = 1;
+		this.targetHeadState = 0;
 
 	};
 

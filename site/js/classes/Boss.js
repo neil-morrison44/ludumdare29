@@ -9,31 +9,24 @@ site.classes.Boss = (function(){
 	var BossLightsImage = new Image();
 
 	BossLightsImage.src = 'images/BossV1Light.png';
-	
+
 
 	var Boss = function(waterLevel){
 		this.x = 700;
 		this.y = 2400;
 		this.velocityX = 0;
 		this.velocityY = 0;
-		this.health = 10;
+		this.health = 50;
 		this.coolDown = 10;
 
 		this.targetY = 0;
 
 		this.targetX = 100;
 
-		this.height = 90;
+		this.height = 472;
 
-		this.width = 60;
+		this.width = 388;
 
-		this.speed = Math.max(0.5,Math.random()*2.5);
-
-		this.velocityX = 0;
-
-		this.velocityY = -1;
-
-		this.minDepth = waterLevel + Math.random()*400;
 	};
 
 
@@ -43,7 +36,7 @@ site.classes.Boss = (function(){
 		//ctx.fillStyle = 'red';
 		//ctx.fillRect(x, y, 60, 90);
 
-		ctx.drawImage(BossImage, x, y, 60, 90);
+		ctx.drawImage(BossImage, x, y, this.width, this.height);
 		ctx.restore();
 	}
 
@@ -58,46 +51,12 @@ site.classes.Boss = (function(){
 		//ctx.fillStyle = 'red';
 		//ctx.fillRect(x, y, 60, 90);
 
-		ctx.drawImage(BossLightsImage, x, y, 60, 90);
+		ctx.drawImage(BossLightsImage, x, y, this.width, this.height);
 		ctx.restore();
 	}
 
 	Boss.prototype.update = function(timeDelta){
 		//this.y = (this.targetY - this.y)/(10*timeDelta);
-
-		if (this.targetY > this.y){
-			if (this.y + this.height < 2400){
-				this.velocityY+= 0.1;
-			}
-		}else{
-				this.velocityY -= 0.01;
-		}
-
-		this.velocityY += (Math.random()/100) - 0.005;
-
-		if (this.targetX > this.x){
-			if (this.velocityX < 1){
-				this.velocityX += 0.01;
-			}
-		}else{
-			if (this.velocityX > -1){
-				this.velocityX -= 0.01;
-			}
-		}
-
-		this.velocityX += (Math.random()/100) - 0.005;
-
-		this.x += this.velocityX*this.speed;
-		this.y += this.velocityY*this.speed;
-
-		if (this.y+this.height > 2410){
-			//this.y = 2400-this.height;
-			this.velocityY = -5;
-		}else if (this.y < this.minDepth){
-			this.velocityY = 0;
-		}
-
-		this.velocityY
 
 	}
 
@@ -110,6 +69,8 @@ site.classes.Boss = (function(){
 		if (this.health > 0){
 			this.health -= 1.5;
 		}
+
+		this
 
 	}
 	return Boss;

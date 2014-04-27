@@ -24,15 +24,22 @@ site.scenes.intro = (function() {
 
 	var introText = [
 	{text:"Over the North Sea,",startAt:0},
-	{text:"100 miles off The People's Republic Of Independent Scotland,", startAt:1000},
+	{text:"132 miles off The People's Republic Of Independent Scotland,", startAt:1000},
 	{text:"2017, 16th of Salmond, Quarter past Sturgeon.", startAt:5000}
 	];
 
 	var radio = false;
 
+	function keyPress(e){
+		if (e.keyCode == 32){
+			skipIntro();
+		}
+	}
+
 	return{
 		init:function(){
 			document.getElementById('gameCanvas').onmouseup = skipIntro;
+			window.onkeyup = keyPress;
 		},
 		frame:function(ctx, timeDelta){
 			time = time+timeDelta;
@@ -92,8 +99,8 @@ site.scenes.intro = (function() {
 					ctx.fillText('below the surface, take the Unmaned Nautical Vehicle and intestigate.', 110, 490);
 
 					if (time > 15000){
-						ctx.fontWeight = 'bold';
-						ctx.fillText('[Click To Continue]', 110, 520);
+						ctx.font = 'bold 21px Helvetica, Arial';
+						ctx.fillText('[SPACE To Continue]', 110, 520);
 					}
 
 				}
@@ -101,6 +108,7 @@ site.scenes.intro = (function() {
 		},
 		deinit:function(){
 			document.getElementById('gameCanvas').removeEventListener('onmouseup', skipIntro);
+			window.removeEventListener('onkeyup', keyPress);
 		}
 	}
 }());

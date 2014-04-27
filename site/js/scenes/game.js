@@ -1,7 +1,6 @@
 site.scenes = site.scenes || {};
 site.scenes.game = (function() {
 
-
 	var character = {
 		x: 280,
 		y: 410,
@@ -14,8 +13,31 @@ site.scenes.game = (function() {
 		active: false,
 		coolDown: 15,
 		currentCoolDown: 0,
+
+		reset:function(){
+			this.x = 280;
+			this.y = 410;
+			this.velocityX = 0;
+			this.velocityY = 0;
+			this.oldX = 0;
+			this.oldY = 0;
+			this.active = false;
+			this.coolDown = 15;
+			this.currentCoolDown = 0;
+
+			this.flash = false;
+
+			this.hullIntegrity = 1;
+			this.lastDamage = 0;
+
+			this.dead = false;
+		},
+
 		takeHit: function() {
 
+			if (this.dead) {
+				return;
+			}
 			var now = (new Date()).getTime();
 
 			if (this.lastDamage + 800 > now) {
@@ -27,6 +49,7 @@ site.scenes.game = (function() {
 				this.hullIntegrity -= 0.05;
 			} else {
 				this.hullIntegrity = 0;
+				this.die();
 				//site.audio.gameAudio.startUpSound();
 			}
 			this.flash = true;
@@ -36,7 +59,52 @@ site.scenes.game = (function() {
 		},
 		flash: false,
 		hullIntegrity: 1,
-		lastDamage: 0
+		lastDamage: 0,
+		dead: false,
+		die: function() {
+			this.dead = true;
+
+			this.velocityX = 0;
+			this.velocityY = 0;
+
+			var velocity = 0.2;
+
+			var velocitySpread = 0.9;
+			spreadParticles(this.x, this.y, 0, Math.PI * 2, 5000, velocitySpread, {
+				colour: 'rgb(125,210,249)',
+				acceleration: 1.009,
+				velocity: velocity,
+				gravity: true,
+				timeToLive: 1000
+			});
+
+			spreadParticles(this.x + 75, this.y + 75, 0, Math.PI * 2, 5000, velocitySpread, {
+				colour: 'rgb(125,210,249)',
+				acceleration: 1.009,
+				velocity: velocity,
+				gravity: true,
+				timeToLive: 1000
+			});
+
+
+			spreadParticles(this.x + 75, this.y, 0, Math.PI * 2, 5000, velocitySpread, {
+				colour: 'rgb(125,210,249)',
+				acceleration: 1.009,
+				velocity: velocity,
+				gravity: true,
+				timeToLive: 1000
+			});
+
+			spreadParticles(this.x, this.y + 75, 0, Math.PI * 2, 5000, velocitySpread, {
+				colour: 'rgb(125,210,249)',
+				acceleration: 1.009,
+				velocity: velocity,
+				gravity: true,
+				timeToLive: 1000
+			});
+
+
+		}
 	};
 
 	var waterLevel = 620;
@@ -140,6 +208,36 @@ site.scenes.game = (function() {
 
 	var totalEnemies = 50;
 
+
+	function resetEveryThing() {
+		totalEnemies = 50;
+		currentEnemies = 2;
+		enemies = [];
+		theirBullets = [];
+		myBullets = [];
+		particles = [];
+
+		camera = 0;
+
+		pressedKeys = new Array(255);
+
+
+		NauticullusRift = false;
+
+		character.reset();
+
+		mouseIsDown = false;
+
+		myHealthGauge = new site.classes.HealthGauge();
+
+		myHealthGauge.max = character.hullIntegrity;
+
+		characterRenderer = new site.classes.CharacterRenderer();
+
+
+	}
+
+
 	function spawnEnemies() {
 		if (!character.active) {
 			return;
@@ -154,15 +252,23 @@ site.scenes.game = (function() {
 		}
 	}
 
-	function renderMan(ctx){
-
+	function renderMan(ctx) {
 		var x = 340;
-		var y = 356-camera;
-		if (NauticullusRift){
+		var y = 356 - camera;
+		if (NauticullusRift) {
 			ctx.drawImage(NauticullusRiftONImage, x, y, 45, 55);
-		}else{
+		} else {
 			ctx.drawImage(NauticullusRiftOFFImage, x, y, 45, 55);
 		}
+	}
+
+	function displayGameOverMessage(ctx) {
+		ctx.save();
+		ctx.fillStyle = 'rgb(125,210,242)';
+		ctx.textAlign = 'center';
+		ctx.fillText('Game Over, press space to return to Title Screen', 500, 280);
+
+		ctx.restore();
 	}
 
 	function updateEnemies(timeDelta) {
@@ -263,7 +369,7 @@ site.scenes.game = (function() {
 
 				myBullets[i].y = Math.min(2400, myBullets[i].y);
 				spreadParticles(myBullets[i].x, myBullets[i].y, myBullets[i].angle - Math.PI, 0.8, 250, 0.2, {
-					colour: 'rgb(125,210,242',
+					colour: 'rgb(125,210,242)',
 					acceleration: 1.009,
 					velocity: 0.3,
 					gravity: true,
@@ -297,8 +403,8 @@ site.scenes.game = (function() {
 
 	function drawBullets(ctx) {
 		ctx.save();
-		ctx.strokeStyle = 'rgb(125,210,249';
-		ctx.shadowColour = 'rgb(255,255,255';
+		ctx.strokeStyle = 'rgb(125,210,249)';
+		ctx.shadowColour = 'rgb(255,255,255)';
 		ctx.lineWidth = 10;
 		ctx.shadowBlur = 4;
 		ctx.beginPath();
@@ -593,6 +699,8 @@ site.scenes.game = (function() {
 		updateEnemies(timeDelta);
 
 		myHealthGauge.current = character.hullIntegrity;
+
+		checkForWin();
 	}
 
 	function renderScene(ctx) {
@@ -626,7 +734,7 @@ site.scenes.game = (function() {
 
 		//ctx.fillRect(character.x, character.y - camera, character.width, character.height);
 
-		if (character.flash) {
+		if (character.flash || character.dead) {
 			character.flash = false;
 		} else {
 			characterRenderer.draw(ctx, character.x, character.y - camera);
@@ -673,20 +781,28 @@ site.scenes.game = (function() {
 
 		renderEnemiesLights(ctx);
 
-		characterRenderer.drawLights(ctx, character.x, character.y - camera);
-
+		if (!character.dead) {
+			characterRenderer.drawLights(ctx, character.x, character.y - camera);
+		}
 
 		if (character.active) {
 			myHealthGauge.draw(ctx, 10, 10, 250);
 			ctx.drawImage(cursorImage, mousePointX - 10, (mousePointY - 10) - camera, cursorImage.width, cursorImage.height);
+			ctx.fillStyle = 'rgb(125, 210, 242)';
+			ctx.fillText((totalEnemies + enemies.length) + '/ 50 Enemies', 500, 30);
 		} else {
 			ctx.save();
 			ctx.fillStyle = 'rgb(125, 210, 242)';
 
 			ctx.textAlign = 'center';
 
-			ctx.fillText('[Press SPACE To push The UNV off and don the Nuatiulus Rift]', 500, 200);
+			ctx.font = '20px Helvetica';
+
+			ctx.fillText('[Press SPACE To push The UNV off and don the Nauticullus Rift]', 500, 200);
 			ctx.restore();
+		}
+		if (character.dead) {
+			displayGameOverMessage(ctx);
 		}
 	}
 
@@ -725,12 +841,23 @@ site.scenes.game = (function() {
 		}
 	}
 
+	function checkForWin(){
+		if (totalEnemies + enemies.length === 0){
+			site.changeScene(site.scenes.winState);
+		}
+	}
+
 
 	function handleKeyUp(event) {
 
 		if (!character.active && event.keyCode !== 32) {
 			return;
 		}
+
+		if (character.dead && event.keyCode !== 32) {
+			return;
+		}
+
 
 		pressedKeys[event.keyCode] = false;
 		switch (event.keyCode) {
@@ -739,6 +866,10 @@ site.scenes.game = (function() {
 			case (32):
 				//space
 				//character.velocityY -= 50;
+
+				if (character.dead) {
+					site.changeScene(site.scenes.titleScreen);
+				}
 				break;
 			case (68):
 				//d
@@ -758,6 +889,10 @@ site.scenes.game = (function() {
 	function handleKeyDown(event) {
 
 		if (!character.active && event.keyCode !== 32) {
+			return;
+		}
+
+		if (character.dead) {
 			return;
 		}
 
@@ -843,6 +978,9 @@ site.scenes.game = (function() {
 	}
 
 	function fireMyBullet() {
+		if (!character.active || character.dead) {
+			return;
+		}
 		//get angle between character and mouse point
 
 		var startX = (character.x + character.width / 2);
@@ -874,6 +1012,9 @@ site.scenes.game = (function() {
 			document.getElementById('gameCanvas').onmousedown = handleMouseDown;
 			document.getElementById('gameCanvas').onmouseup = handleMouseUp;
 			document.getElementById('gameCanvas').onmousemove = handleMouseMove;
+
+
+			resetEveryThing();
 		},
 		deinit: function() {
 			window.removeEventListener('onkeyup', handleKeyUp);
