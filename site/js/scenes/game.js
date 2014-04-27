@@ -3,16 +3,40 @@ site.scenes.game = (function() {
 
 
 	var character = {
-		x: 100,
-		y: 0,
+		x: 280,
+		y: 410,
 		velocityX: 0,
-		velocityY: 10,
+		velocityY: 0,
 		width: 75,
 		height: 75,
 		oldX: 100,
 		oldY: 0,
-		coolDown:15,
-		currentCoolDown:0
+		active: false,
+		coolDown: 15,
+		currentCoolDown: 0,
+		takeHit: function() {
+
+			var now = (new Date()).getTime();
+
+			if (this.lastDamage + 800 > now) {
+				return;
+			}
+
+			this.lastDamage = now;
+			if (this.hullIntegrity > 0) {
+				this.hullIntegrity -= 0.05;
+			} else {
+				this.hullIntegrity = 0;
+				//site.audio.gameAudio.startUpSound();
+			}
+			this.flash = true;
+
+			site.audio.gameAudio.hurtSound();
+
+		},
+		flash: false,
+		hullIntegrity: 1,
+		lastDamage: 0
 	};
 
 	var waterLevel = 620;
@@ -35,6 +59,41 @@ site.scenes.game = (function() {
 
 	cursorImage.src = "images/cursor.png";
 
+	var seaFloorImage = new Image();
+
+	seaFloorImage.src = "images/seaFloor.png";
+
+
+	var characterRenderer = new site.classes.CharacterRenderer();
+
+
+	var pitBackImage = new Image();
+	var pitFrontImage = new Image();
+	var pitLightImage = new Image();
+
+	pitBackImage.src = "images/pitBack.png";
+
+	pitFrontImage.src = "images/pitFront.png";
+
+	pitLightImage.src = "images/pitLight.png";
+
+
+	var NauticullusRift = false;
+
+	var NauticullusRiftONImage = new Image();
+
+	NauticullusRiftONImage.src = "images/NauticullusRiftON.png";
+
+	var NauticullusRiftOFFImage = new Image();
+
+	NauticullusRiftOFFImage.src = "images/NauticullusRiftOFF.png";
+
+
+	var myHealthGauge = new site.classes.HealthGauge();
+
+
+	myHealthGauge.max = character.hullIntegrity;
+
 	var platforms = [{
 		x: 300,
 		y: 410,
@@ -53,13 +112,13 @@ site.scenes.game = (function() {
 		x: -200,
 		y: -200,
 		width: 200,
-		height: 2400,
+		height: 2600,
 		name: 'leftWall'
 	}, {
 		x: 1000,
 		y: -200,
 		width: 200,
-		height: 2400,
+		height: 2800,
 		name: 'rightWall'
 	}, {
 		x: 0,
@@ -70,14 +129,125 @@ site.scenes.game = (function() {
 	}];
 
 	var particles = [];
-
 	var myBullets = [];
 
 	var theirBullets = [];
 
 	var enemies = [];
+	var maxEnemies = 5;
+
+	var currentEnemies = 2;
+
+	var totalEnemies = 50;
+
+	function spawnEnemies() {
+		if (!character.active) {
+			return;
+		}
+		if (enemies.length < currentEnemies && Math.random() > 0.95 && totalEnemies > 0) {
+			enemies.push(new site.classes.Enemy(waterLevel));
+			totalEnemies--;
+		}
+
+		if (Math.random() > 0.999) {
+			currentEnemies++;
+		}
+	}
+
+	function renderMan(ctx){
+
+		var x = 340;
+		var y = 356-camera;
+		if (NauticullusRift){
+			ctx.drawImage(NauticullusRiftONImage, x, y, 45, 55);
+		}else{
+			ctx.drawImage(NauticullusRiftOFFImage, x, y, 45, 55);
+		}
+	}
+
+	function updateEnemies(timeDelta) {
+		var killThese = [];
+		for (var i = enemies.length - 1; i >= 0; i--) {
+			enemies[i].targetY = character.y;
+
+			enemies[i].targetX = character.x;
+
+			enemies[i].update(timeDelta);
+
+			if (enemies[i].health <= 0) {
+				killThese.push(enemies[i]);
+
+				spreadParticles(enemies[i].x + 30, enemies[i].y + 45, 0, Math.PI * 2, 1500, 0.1, {
+					colour: 'rgb(246,63,47)',
+					acceleration: 1.009,
+					velocity: 0.1,
+					gravity: true,
+					timeToLive: 60
+				});
+
+				site.audio.gameAudio.enemyKillSound();
+			}
+		};
+
+		killThese = killThese.sort();
+
+		for (var i = killThese.length - 1; i >= 0; i--) {
+			enemies.splice(killThese[i], 1);
+		};
+
+	}
 
 
+	function renderPit(ctx) {
+		ctx.save();
+		ctx.drawImage(pitBackImage, 600, (2500 - pitBackImage.height) - camera);
+		ctx.globalAlpha = Math.random();
+		ctx.drawImage(pitLightImage, 600, (2500 - pitLightImage.height) - camera);
+		ctx.globalAlpha = 1;
+		ctx.drawImage(pitFrontImage, 600, (2500 - pitFrontImage.height) - camera);
+		ctx.restore();
+	}
+
+	function checkEnemiesForCollision() {
+		for (var i = myBullets.length - 1; i >= 0; i--) {
+
+			var bulletBox = {
+				x: myBullets[i].x - 10,
+				y: myBullets[i].y - 10,
+				width: 20,
+				height: 20,
+			};
+
+			for (var j = enemies.length - 1; j >= 0; j--) {
+				//enemies[j]
+
+				if (intersects(enemies[j], bulletBox)) {
+					enemies[j].takeHit();
+
+					myBullets[i].hit = true;
+				}
+			};
+		};
+
+
+		for (var i = enemies.length - 1; i >= 0; i--) {
+			if (intersects(enemies[i], character)) {
+				character.takeHit();
+			}
+		};
+	}
+
+	function renderEnemies(ctx) {
+		for (var i = enemies.length - 1; i >= 0; i--) {
+			enemies[i].draw(ctx, enemies[i].x, enemies[i].y - camera);
+		};
+	}
+
+	function renderEnemiesLights(ctx) {
+		for (var i = enemies.length - 1; i >= 0; i--) {
+			enemies[i].drawLights(ctx, enemies[i].x, enemies[i].y - camera);
+		};
+	}
 
 	function updateBullets(timeDelta) {
 		var killThese = [];
@@ -88,25 +258,32 @@ site.scenes.game = (function() {
 			myBullets[i].x += myBullets[i].velocityX * timeDelta;
 			myBullets[i].y += myBullets[i].velocityY * timeDelta;
 
-			if (myBullets[i].y > 2400){
+			if (myBullets[i].y > 2400 || myBullets[i].hit) {
 				killThese.push(i);
-				spreadParticles(myBullets[i].x, 2400, myBullets[i].angle - Math.PI, 0.2, 100, 0.5, {
-					colour: 'rgb(125,125,255',
+
+				myBullets[i].y = Math.min(2400, myBullets[i].y);
+				spreadParticles(myBullets[i].x, myBullets[i].y, myBullets[i].angle - Math.PI, 0.8, 250, 0.2, {
+					colour: 'rgb(125,210,242',
 					acceleration: 1.009,
-					velocity: 0.2,
+					velocity: 0.3,
 					gravity: true,
-					timeToLive: 15
+					timeToLive: 30
 				});
+				site.audio.gameAudio.hitSound();
 			}
 
-			if (myBullets[i].y > waterLevel){
+			if (myBullets[i].y > waterLevel) {
 				spreadParticles(myBullets[i].x, myBullets[i].y, myBullets[i].angle, 0.2, 15, 0.5, {
 					colour: 'white',
 					acceleration: 1,
 					velocity: 0.2,
 					gravity: false,
-					timeToLive:15
+					timeToLive: 15
 				});
+			}
+
+			if (myBullets[i].oldX < -200 || myBullets[i].x > 1200 || myBullets[i].oldY < -200) {
+				killThese.push(i);
 			}
 
 		};
@@ -120,10 +297,10 @@ site.scenes.game = (function() {
 
 	function drawBullets(ctx) {
 		ctx.save();
-		ctx.strokeStyle = 'rgb(125,125,255';
+		ctx.strokeStyle = 'rgb(125,210,249';
 		ctx.shadowColour = 'rgb(255,255,255';
 		ctx.lineWidth = 10;
-		ctx.shadowBlur = 40;
+		ctx.shadowBlur = 4;
 		ctx.beginPath();
 		for (var i = myBullets.length - 1; i >= 0; i--) {
 			ctx.moveTo(myBullets[i].oldX, myBullets[i].oldY - camera);
@@ -150,7 +327,8 @@ site.scenes.game = (function() {
 	}
 
 	function checkForSplash() {
-		if ((character.oldY + character.height) < waterLevel && (character.y + character.height) >= waterLevel) {
+		if (((character.oldY + character.height) < waterLevel && (character.y + character.height) >= waterLevel) ||
+			(character.oldY) > waterLevel && (character.y) <= waterLevel) {
 			spreadParticles(character.x, character.y + character.height + 10, (Math.PI / 2) * -1, 0.5, 150, 0.4, {
 				colour: 'white',
 				acceleration: 1,
@@ -171,7 +349,24 @@ site.scenes.game = (function() {
 				velocity: 0.6,
 				gravity: true
 			});
+
+			site.audio.gameAudio.splashSound();
+
+			if (!character.active) {
+				character.active = true;
+				character.velocityX = 0;
+
+				characterRenderer.acceptState({
+					headState: 1,
+					lightState: 1
+				});
+
+				site.audio.gameAudio.startUpSound();
+
+			}
 		}
+
+
 	}
 
 
@@ -344,6 +539,8 @@ site.scenes.game = (function() {
 					velocity: 0.2,
 					gravity: true
 				});
+
+				site.audio.gameAudio.landSound();
 			}
 		}
 	}
@@ -354,6 +551,8 @@ site.scenes.game = (function() {
 		character.y += character.velocityY * (timeDelta / 100);
 		character.x += character.velocityX * (timeDelta / 100);
 
+
+		checkEnemiesForCollision();
 		checkCollisionsAndClamp();
 
 		character.velocityY += 0.98;
@@ -376,6 +575,24 @@ site.scenes.game = (function() {
 		emitJets();
 
 		autoFire();
+
+		if (character.active) {
+			characterRenderer.acceptState({
+				gunAngle: getGunAngle(),
+				hullIntegrity: character.hullIntegrity
+			});
+		} else {
+			characterRenderer.acceptState({
+				headState: 0.01,
+				lightState: 0.01
+			});
+		}
+
+		spawnEnemies();
+
+		updateEnemies(timeDelta);
+
+		myHealthGauge.current = character.hullIntegrity;
 	}
 
 	function renderScene(ctx) {
@@ -388,21 +605,33 @@ site.scenes.game = (function() {
 			ctx.drawImage(rigLegsImage, 300, (i * rigLegsImage.height) - camera - 20, rigLegsImage.width, rigLegsImage.height);
 		};
 
-		drawParticles(ctx);
-		ctx.fillStyle = 'brown';
 
-		ctx.fillRect(0, 2400 - camera, ctx.canvas.width, 200);
+
+		renderPit(ctx);
+		drawParticles(ctx);
+
+		ctx.drawImage(seaFloorImage, 0, 2380 - camera, 1000, 220);
+
 
 
 		ctx.drawImage(rigImage, 300, 250 - camera, rigImage.width, rigImage.height);
 
+		renderMan(ctx);
 
 
+		renderEnemies(ctx);
+
+		//draw character
 		ctx.fillStyle = 'red';
 
-		ctx.fillRect(character.x, character.y - camera, character.width, character.height);
+		//ctx.fillRect(character.x, character.y - camera, character.width, character.height);
 
-		ctx.drawImage(cursorImage, mousePointX - 10, (mousePointY - 10) - camera, cursorImage.width, cursorImage.height);
+		if (character.flash) {
+			character.flash = false;
+		} else {
+			characterRenderer.draw(ctx, character.x, character.y - camera);
+		}
+
 
 
 		//water
@@ -440,11 +669,32 @@ site.scenes.game = (function() {
 
 		drawBullets(ctx);
 
-		drawPlatforms(ctx);
+		//drawPlatforms(ctx);
+
+		renderEnemiesLights(ctx);
+
+		characterRenderer.drawLights(ctx, character.x, character.y - camera);
+
+
+		if (character.active) {
+			myHealthGauge.draw(ctx, 10, 10, 250);
+			ctx.drawImage(cursorImage, mousePointX - 10, (mousePointY - 10) - camera, cursorImage.width, cursorImage.height);
+		} else {
+			ctx.save();
+			ctx.fillStyle = 'rgb(125, 210, 242)';
+
+			ctx.textAlign = 'center';
+
+			ctx.fillText('[Press SPACE To push The UNV off and don the Nuatiulus Rift]', 500, 200);
+			ctx.restore();
+		}
 	}
 
 
 	function emitJets() {
+		if (!character.active) {
+			return;
+		}
 		if (character.velocityX > 0) {
 			spreadParticles(character.x, character.y + character.height / 2, Math.PI, 0.5, 5, 0.4, {
 				colour: 'white',
@@ -452,6 +702,7 @@ site.scenes.game = (function() {
 				velocity: 0.6,
 				gravity: true
 			});
+			site.audio.gameAudio.thrusterSound();
 		} else if (character.velocityX < 0) {
 			spreadParticles(character.x + character.width, character.y + character.height / 2, 0, 0.5, 5, 0.4, {
 				colour: 'white',
@@ -459,22 +710,27 @@ site.scenes.game = (function() {
 				velocity: 0.6,
 				gravity: true
 			});
+			site.audio.gameAudio.thrusterSound();
 		}
 
 
 	}
 
-	function autoFire(){
-		if (mouseIsDown && character.currentCoolDown <= 0){
+	function autoFire() {
+		if (mouseIsDown && character.currentCoolDown <= 0) {
 			fireMyBullet();
 			character.currentCoolDown = character.coolDown;
-		}else if (mouseIsDown){
+		} else if (mouseIsDown) {
 			character.currentCoolDown--;
 		}
 	}
 
 
 	function handleKeyUp(event) {
+
+		if (!character.active && event.keyCode !== 32) {
+			return;
+		}
 
 		pressedKeys[event.keyCode] = false;
 		switch (event.keyCode) {
@@ -500,6 +756,11 @@ site.scenes.game = (function() {
 	}
 
 	function handleKeyDown(event) {
+
+		if (!character.active && event.keyCode !== 32) {
+			return;
+		}
+
 		if (pressedKeys[event.keyCode]) {
 			return;
 		}
@@ -507,17 +768,27 @@ site.scenes.game = (function() {
 		switch (event.keyCode) {
 			case (87):
 				//w
+
+
 			case (32):
+
+				if (!character.active) {
+					character.velocityX -= 10;
+					NauticullusRift = true;
+					site.audio.gameAudio.landSound();
+				}
+
 				//space
 				if (character.y + character.height > waterLevel) {
-					character.velocityY -= 25;
+					character.velocityY -= 20;
 
-					spreadParticles(character.x + (character.width / 2), character.y + character.height-10, Math.PI / 2, 1, 150, 0.4, {
+					spreadParticles(character.x + (character.width / 2), character.y + character.height - 10, Math.PI / 2, 1, 150, 0.4, {
 						colour: 'white',
 						acceleration: 1,
 						velocity: 0.6,
 						gravity: true
 					});
+					site.audio.gameAudio.thrusterSound();
 
 				}
 				break;
@@ -546,7 +817,7 @@ site.scenes.game = (function() {
 		mousePointY = event.offsetY + camera;
 		mouseIsDown = true;
 
-		
+
 	}
 
 	function handleMouseUp(event) {
@@ -561,6 +832,14 @@ site.scenes.game = (function() {
 		mousePointX = event.offsetX;
 		mousePointY = event.offsetY + camera;
 
+	}
+
+	function getGunAngle() {
+		var startX = (character.x + character.width / 2);
+
+		var startY = (character.y + character.height / 2);
+
+		return Math.atan2(mousePointY - startY, mousePointX - startX);
 	}
 
 	function fireMyBullet() {
@@ -578,8 +857,13 @@ site.scenes.game = (function() {
 			velocityY: Math.sin(angleRadians) * 0.8,
 			oldX: startX,
 			oldY: startY,
-			angle:angleRadians
+			angle: angleRadians,
+			hit: false
 		});
+
+		site.audio.gameAudio.laserSound();
+
+		site.audio.gameAudio.miniThrusterSound();
 
 	}
 
@@ -592,11 +876,11 @@ site.scenes.game = (function() {
 			document.getElementById('gameCanvas').onmousemove = handleMouseMove;
 		},
 		deinit: function() {
-			window.unbind('onkeyup', handleKeyUp);
-			window.unbind('onkeydown', handleKeyDown);
-			document.getElementById('gameCanvas').unbind('onmousedown', handleMouseDown);
-			document.getElementById('gameCanvas').unbind('onmouseup', handleMouseUp);
-			document.getElementById('gameCanvas').unbind('onmousemove', handleMouseMove);
+			window.removeEventListener('onkeyup', handleKeyUp);
+			window.removeEventListener('onkeydown', handleKeyDown);
+			document.getElementById('gameCanvas').removeEventListener('onmousedown', handleMouseDown);
+			document.getElementById('gameCanvas').removeEventListener('onmouseup', handleMouseUp);
+			document.getElementById('gameCanvas').removeEventListener('onmousemove', handleMouseMove);
 
 		},
 		frame: function(ctx, timeDelta) {

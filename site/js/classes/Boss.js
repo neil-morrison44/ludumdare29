@@ -1,17 +1,17 @@
 site.classes = site.classes || {};
 
-site.classes.Enemy = (function(){
+site.classes.Boss = (function(){
 
-	var EnemyImage = new Image();
+	var BossImage = new Image();
 
-	EnemyImage.src = 'images/enemy.png';
+	BossImage.src = 'images/BossV1.png';
 
-	var EnemyLightsImage = new Image();
+	var BossLightsImage = new Image();
 
-	EnemyLightsImage.src = 'images/enemyLights.png';
+	BossLightsImage.src = 'images/BossV1Light.png';
+	
 
-
-	var Enemy = function(waterLevel){
+	var Boss = function(waterLevel){
 		this.x = 700;
 		this.y = 2400;
 		this.velocityX = 0;
@@ -37,17 +37,17 @@ site.classes.Enemy = (function(){
 	};
 
 
-	Enemy.prototype.draw = function(ctx, x, y){
+	Boss.prototype.draw = function(ctx, x, y){
 
 		ctx.save();
 		//ctx.fillStyle = 'red';
 		//ctx.fillRect(x, y, 60, 90);
 
-		ctx.drawImage(EnemyImage, x, y, 60, 90);
+		ctx.drawImage(BossImage, x, y, 60, 90);
 		ctx.restore();
 	}
 
-	Enemy.prototype.drawLights = function(ctx, x, y){
+	Boss.prototype.drawLights = function(ctx, x, y){
 		if (this.flash){
 			this.flash = false;
 			return;
@@ -58,11 +58,11 @@ site.classes.Enemy = (function(){
 		//ctx.fillStyle = 'red';
 		//ctx.fillRect(x, y, 60, 90);
 
-		ctx.drawImage(EnemyLightsImage, x, y, 60, 90);
+		ctx.drawImage(BossLightsImage, x, y, 60, 90);
 		ctx.restore();
 	}
 
-	Enemy.prototype.update = function(timeDelta){
+	Boss.prototype.update = function(timeDelta){
 		//this.y = (this.targetY - this.y)/(10*timeDelta);
 
 		if (this.targetY > this.y){
@@ -101,7 +101,7 @@ site.classes.Enemy = (function(){
 
 	}
 
-	Enemy.prototype.takeHit = function(){
+	Boss.prototype.takeHit = function(){
 		this.speed -= 0.01;
 		this.speed = Math.max(0.1, this.speed);
 
@@ -112,6 +112,6 @@ site.classes.Enemy = (function(){
 		}
 
 	}
-	return Enemy;
+	return Boss;
 
 }());

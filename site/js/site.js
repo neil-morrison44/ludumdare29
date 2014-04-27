@@ -42,8 +42,6 @@ var site = (function() {
 		
 		currentScene.frame(ctx, delta);
 
-
-
 		lastTime = now;
 
 		requestAnimFrame(renderFrame);
@@ -52,11 +50,12 @@ var site = (function() {
 	return {
 		init: function() {
 			initCanvas();
-			changeScene(site.scenes.game);
+			changeScene(site.scenes.titleScreen);
 
 			lastTime = (new Date()).getTime();
 			requestAnimFrame(renderFrame);
-		}
+		},
+		changeScene:changeScene
 	}
 }());
 
